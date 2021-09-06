@@ -170,9 +170,9 @@ def exemplos():
 
 
 # Chamando as funções
-#plot_hist()
-#istograma()
-#target_count()
-#correlation()
-#split_model()
+plot_hist()
+histograma()
+target_count()
+correlation()
+split_model()
 exemplos()
