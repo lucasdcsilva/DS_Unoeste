@@ -1,4 +1,3 @@
-# Análise de dados de Diabetes
 import os
 from numpy.core.fromnumeric import trace
 from numpy.lib.utils import info
@@ -13,6 +12,16 @@ from sklearn.linear_model import Perceptron
 from sklearn import metrics
 from sklearn.metrics import confusion_matrix
 from sklearn.naive_bayes import GaussianNB
+from sklearn import model_selection
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.svm import SVC
+
+
 
 
 plt.style.use('ggplot')
@@ -29,26 +38,19 @@ file_names = [i for i in os.listdir(DATA_DIR) if i.endswith('.csv')]
 for i in file_names:
     df = pd.read_csv(os.path.join(DATA_DIR, i))
 
-# Apresentando as informações do Dataset
-#print('\n ************ Informações sobre o Dataset ********** \n')
-#print('Diretórios: \n')
-#print('Meu diretório do projeto é: ', BASE_DIR)
-#print('Meu diretório de dados é: ', DATA_DIR)
-#print('Este é o meu Dataset: \n', df.head(5))
-
 # Iniciando o tratamento dos dados. True = 1 and False = 0
 map_data = {True: 1, False: 0}
-df['diabetes'] = df['diabetes'].map(map_data)
-#print('\nAlteração de valores categóricos: \n', df.head(5))
+df['mask'] = df['mask'].map(map_data)
+#print('\nAlteração de valores categóricos: \n,df.head(5))
 
 # ******************* Amostras por classe **************************************************
-sample0 = np.where(df.loc[df['diabetes'] == 0])
-sample1 = np.where(df.loc[df['diabetes'] == 1])
+sample0 = np.where(df.loc[df['mask'] == 0])
+sample1 = np.where(df.loc[df['mask'] == 1])
 
 
 # ******************* Quantidade de amostrar por classe **************************************
-vl_paciente = len(df.loc[df['diabetes'] == 1])
-vl_controle = len(df.loc[df['diabetes'] == 0])
+com_mascara = len(df.loc[df['mask'] == 1])
+sem_mascara = len(df.loc[df['mask'] == 0])
 
 # ******************* Dados Faltantes e valores = 0 **************************************************
 dt_feature = df.iloc[:,:-1]
@@ -67,17 +69,17 @@ def plot_hist():
 
 # Histograma web offline
 def target_count():
-    trace = go.Bar(x = df['diabetes'].value_counts().values.tolist(),
-                    y = ['Saldaveis', 'Diabeticos'],
+    trace = go.Bar(x = df['mask'].value_counts().values.tolist(),
+                    y = ['Com mascara', 'Sem mascara'],
                     orientation = 'v',
-                    text=df['diabetes'].value_counts().values.tolist(),
+                    text=df['mask'].value_counts().values.tolist(),
                     textfont=dict(size=15),
                     textposition = 'auto',
                     opacity = 0.8, marker=dict(color=['lightskyblue', 'gold'],
                     line=dict(color='#000000', width=1.5)))
     layout = dict(title='Resultado')
     fig = dict(data=[trace], layout=layout)
-    py.iplot(fig)
+    py.plot(fig)
 
 # Análise de correlação
 def correlation(size=10):
@@ -97,22 +99,10 @@ def boxplot():
     plt.title("Overview Dataset")
     ax = sns.boxplot(data=df, orient='v', palette='Set2')
     plt.show()
-   
 
-def information():
-    print('\n ************ Informações sobre o Dataset ********** \n')
-    print('Diretórios: \n')
-    print('Meu diretório do projeto é: ', BASE_DIR)
-    print('Meu diretório de dados é: ', DATA_DIR)
-    print('\nAmostras da classe controle: ', vl_controle)
-    print('Amostras da classe paciente: ', vl_paciente)
-    print('Colunas com valores = 0: \n',(df==0).sum())
-    print('O conjunto de dados possui %d linhas e %d colunas para : '%(len(df[:]), len(df.columns)))
-    print('   %d pacientes, que correspondem a %.2f%% do conjunto de dados' %(vl_paciente, vl_paciente /(vl_paciente+vl_controle)*100))
-    print('   %d controle, que correspondem a %.2f%% do conjunto de dados' %(vl_controle, vl_controle /(vl_controle+vl_paciente)*100))
-    print('\n Valores faltantes: ', df.isnull().values.any())
-    print('Características com valores = 0 alteradas para média:\n ', dt_feature.head())
-
+def histograma():
+    df.hist()
+    plt.show()
 
 # ******************* Preparando os modelos de ML **************************************************
 
@@ -143,25 +133,46 @@ def split_model():
         gnb.predictions = gnb.predict(X_test)
         acc_nb = gnb.score(X_test, y_test)
 
-
-
-        # Accuracy
         accuracy_PC.append(acc_perpep)
         accuracy_NB.append(acc_nb)
 
         print('\n Resultados Perceptron: \nAcc_Pc: ', acc_perpep)
         print('\n Resultados Naive Bayes: \nAcc_NB: ', acc_nb)
-        #print(metrics.confusion_matrix(y_test, percep.predictions))
-        #print('\nClassificação:\n', metrics.classification_report(y_test, percep.predictions))
         print('Vetor de Acc Perceptron: ', accuracy_PC)
         print('Vetor de Acc Bayes: ', accuracy_NB)
 
-
+def exemplos():
+    X_train, X_test, y_train, y_test = train_test_split(dt_feature, dt_target, test_size=0.3, random_state=None, shuffle=True)
+    seed=7
+    scoring='accuracy'
+    models = []
+    models.append(('LR', LogisticRegression(solver='liblinear', multi_class='ovr')))
+    models.append(('LDA', LinearDiscriminantAnalysis()))
+    models.append(('KNN', KNeighborsClassifier()))
+    models.append(('CART', DecisionTreeClassifier()))
+    models.append(('NB', GaussianNB()))
+    models.append(('SVM', SVC(gamma='auto')))
+    results = []
+    names = []
+    for name, model in models:
+        kfold = model_selection.KFold(n_splits=10, random_state=None, shuffle=True)
+        cv_results = model_selection.cross_val_score(model, X_train, y_train, cv=kfold, scoring=scoring)
+        results.append(cv_results)
+        names.append(name)
+        msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+    #Exibit plot
+    fig = plt.figure()
+    fig.suptitle('Algorithm Comparison')
+    ax = fig.add_subplot(111)
+    plt.boxplot(results)
+    ax.set_xticklabels(names)
+    plt.show()
 
 
 # Chamando as funções
-#information()
 #plot_hist()
+#istograma()
 #target_count()
 #correlation()
-split_model()
+#split_model()
+exemplos()
